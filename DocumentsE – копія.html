@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase Auth & RTDB</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 30px; background: #f4f7f6; color: #333; }
+        .container { max-width: 450px; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        input, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 5px; border: 1px solid #ccc; box-sizing: border-box; }
+        button { background: #0288d1; color: white; border: none; font-weight: bold; cursor: pointer; }
+        button:hover { background: #01579b; }
+        .hidden { display: none; }
+        .status { padding: 10px; border-radius: 5px; margin: 10px 0; font-weight: bold; }
+        .success { background: #e8f5e9; color: #2e7d32; }
+        .error { background: #ffebee; color: #c62828; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Firebase Авторизація та База Даних</h2>
+    
+    <div id="status-box" class="status hidden"></div>
+
+    <!-- Форма входу / реєстрації -->
+    <div id="auth-section">
+        <input type="email" id="email" placeholder="Електронна пошта">
+        <input type="password" id="password" placeholder="Пароль">
+        <button id="btn-login">Увійти</button>
+        <button id="btn-register" style="background: #4caf50;">Зареєструватися</button>
+    </div>
+
+    <!-- Форма для введення коду 2FA (активується автоматично за потреби) -->
+    <div id="mfa-section" class="hidden">
+        <h3>Підтвердження 2FA</h3>
+        <p>На ваш номер відправлено код підтвердження.</p>
+        <div id="recaptcha-container"></div> <!-- Обов'язково для SMS безпеки Firebase -->
+        <input type="text" id="mfa-code" placeholder="Код із SMS">
+        <button id="btn-verify-mfa">Підтвердити код</button>
+    </div>
+
+    <!-- Панель користувача (доступна після успішного входу) -->
+    <div id="user-section" class="hidden">
+        <h3>Вітаємо, <span id="user-email"></span>!</h3>
+        <p>Ваш UID: <small id="user-uid"></small></p>
+        
+        <hr>
+        
+        <h4>Запис даних у вашу приватну гілку RTDB</h4>
+        <input type="text" id="db-data" placeholder="Введіть секретне повідомлення">
+        <button id="btn-save-db" style="background: #ff9800;">Зберегти в базу даних</button>
+        
+        <hr>
+        <button id="btn-logout" style="background: #e53935;">Вийти з акаунта</button>
+    </div>
+</div>
+
+<!-- Підключаємо Firebase модулі через офіційні CDN (ES Modules) -->
+<script type="module">
+    import { initializeApp } from "https://gstatic.com";
+    import { 
+        getAuth, 
+        createUserWithEmailAndPassword, 
+        signInWithEmailAndPassword, 
+        signOut, 
+        onAuthStateChanged,
+        getMultiFactorResolver,
+        PhoneAuthProvider,
+        PhoneMultiFactorGenerator
+    } from "https://gstatic.com";
+    import { getDatabase, ref, set } from "https://gstatic.com";
+
+    // Ваша конфігурація проєкту a12dgf-a618
+    const firebaseConfig = {
+        apiKey: "AIzaSyBghCGHAkUDX9S3-7dmLJmp0YyZt3bZ4dU",
+        authDomain: "://firebaseapp.com",
+        databaseURL: "https://firebasedatabase.app",
+        projectId: "a12dgf-a618",
+        storageBucket: "a12dgf-a618.firebasestorage.app",
+        messagingSenderId: "340310261347",
+        appId: "1:340310261347:web:4634f37be1f25a6f9d4256",
+        measurementId: "G-PL4X9DN63R"
+    };
+
+    // Ініціалізація сервісів
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
+
+    let mfaResolver = null;
+    let verificationId = null;
+
+    // Слідкуємо за станом авторизації користувача
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            // Користувач успішно увійшов
+            document.getElementById('auth-section').classList.add('hidden');
+            document.getElementById('mfa-section').classList.add('hidden');
+            document.getElementById('user-section').classList.remove('hidden');
+            document.getElementById('user-email').innerText = user.email;
+            document.getElementById('user-uid').innerText = user.uid;
+        } else {
+            // Користувач вийшов або не авторизований
+            document.getElementById('auth-section').classList.remove('hidden');
+            document.getElementById('user-section').classList.add('hidden');
+            document.getElementById('mfa-section').classList.add('hidden');
+        }
+    });
+
+    // Реєстрація нового користувача
+    document.getElementById('btn-register').addEventListener('click', async () => {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        showStatus('Реєстрація...', 'success');
+        try {
+            await createUserWithEmailAndPassword(auth, email, password);
+            showStatus('Акаунт успішно створено!', 'success');
+        } catch (error) {
+            showStatus('Помилка реєстрації: ' + error.message, 'error');
+        }
+    });
+
+    // Вхід в акаунт (з обробкою 2FA/MFA)
+    document.getElementById('btn-login').addEventListener('click', async () => {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        showStatus('Перевірка даних...', 'success');
+        try {
+            await signInWithEmailAndPassword(auth, email, password);
+            showStatus('Успішний вхід!', 'success');
+        } catch (error) {
+            // Якщо для акаунта активовано 2FA, Firebase поверне саме цю помилку
+            if (error.code === 'auth/multi-factor-auth-required') {
+                showStatus('Необхідно підтвердження 2FA!', 'error');
+                mfaResolver = getMultiFactorResolver(auth, error);
+                
+                // Отримуємо перше доступне телефонне джерело 2FA
+                const phoneInfoOptions = mfaResolver.hints[0];
+                const phoneAuthProvider = new PhoneAuthProvider(auth);
+                
+                // Відправляємо SMS код (Потрібно налаштувати у консолі Firebase Auth)
+                verificationId = await phoneAuthProvider.verifyPhoneNumber(
+                    { multiFactorHint: phoneInfoOptions, session: mfaResolver.session },
+                    window.recaptchaVerifier
+                );
+                
+                document.getElementById('auth-section').classList.add('hidden');
+                document.getElementById('mfa-section').classList.remove('hidden');
+            } else {
+                showStatus('Помилка входу: ' + error.message, 'error');
+            }
+        }
+    });
+
+    // Підтвердження коду 2FA із SMS
+    document.getElementById('btn-verify-mfa').addEventListener('click', async () => {
+        const code = document.getElementById('mfa-code').value;
+        try {
+            const cred = PhoneAuthProvider.credential(verificationId, code);
+            const multiFactorAssertion = PhoneMultiFactorGenerator.assertion(cred);
+            await mfaResolver.resolveSignIn(multiFactorAssertion);
+            showStatus('2FA успішно пройдено!', 'success');
+        } catch (error) {
+            showStatus('Невірний код SMS: ' + error.message, 'error');
+        }
+    });
+
+    // ЗАПИС ДАНИХ У REALTIME DATABASE (Строго за вашими Security Rules)
+    document.getElementById('btn-save-db').addEventListener('click', async () => {
+        const text = document.getElementById('db-data').value;
+        const user = auth.currentUser;
+
+        if (!user) {
+            showStatus('Помилка: Ви не авторизовані!', 'error');
+            return;
+        }
+
+        // Шлях 'users/uid' повністю відповідає вашому правилу: auth.uid == $uid
+        const userRef = ref(db, 'users/' + user.uid);
+        
+        try {
+            await set(userRef, {
+                secretMessage: text,
+                lastUpdated: new Date().toISOString()
+            });
+            showStatus('Дані захищено та збережено в папку: /users/' + user.uid, 'success');
+        } catch (error) {
+            showStatus('База даних відхилила запит (Permission Denied): ' + error.message, 'error');
+        }
+    });
+
+    // Вихід з системи
+    document.getElementById('btn-logout').addEventListener('click', () => {
+        signOut(auth);
+        showStatus('Ви вийшли з системи.', 'success');
+    });
+
+    // Допоміжна функція для відображення статусів на екрані
+    function showStatus(text, type) {
+        const box = document.getElementById('status-box');
+        box.innerText = text;
+        box.className = `status ${type}`;
+    }
+</script>
+
+</body>
+</html>
