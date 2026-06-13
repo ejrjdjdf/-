@@ -43,11 +43,11 @@
     </div>
 </div>
 
-<!-- Сучасні модулі Firebase v10 через залізобетонний CDN esm.run (Без CORS і без gstatic) -->
+<!-- Прямі офіційні лінки Google без жодних редиректів та сторонніх CDN -->
 <script type="module">
-    import { initializeApp } from "https://esm.run";
-    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://esm.run";
-    import { getDatabase, ref, set } from "https://esm.run";
+    import { initializeApp } from "https://gstatic.com";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://gstatic.com";
+    import { getDatabase, ref, set } from "https://gstatic.com";
 
     const firebaseConfig = {
         apiKey: "AIzaSyBghCGHAkUDX9S3-7dmLJmp0YyZt3bZ4dU",
@@ -60,12 +60,10 @@
         measurementId: "G-PL4X9DN63R"
     };
 
-    // Ініціалізація
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getDatabase(app);
 
-    // Слідкуємо за станом користувача
     onAuthStateChanged(auth, (user) => {
         if (user) {
             document.getElementById('auth-section').classList.add('hidden');
@@ -78,7 +76,6 @@
         }
     });
 
-    // Реєстрація користувача
     document.getElementById('btn-register').addEventListener('click', async () => {
         const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
@@ -91,7 +88,6 @@
         }
     });
 
-    // Вхід в акаунт
     document.getElementById('btn-login').addEventListener('click', async () => {
         const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
@@ -104,7 +100,6 @@
         }
     });
 
-    // Запис у Realtime Database
     document.getElementById('btn-save-db').addEventListener('click', async () => {
         const text = document.getElementById('db-data').value;
         const user = auth.currentUser;
@@ -115,7 +110,6 @@
         }
 
         const userRef = ref(db, 'users/' + user.uid);
-        
         try {
             await set(userRef, {
                 secretMessage: text,
@@ -127,7 +121,6 @@
         }
     });
 
-    // Вихід
     document.getElementById('btn-logout').addEventListener('click', async () => {
         try {
             await signOut(auth);
