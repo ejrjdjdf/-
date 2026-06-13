@@ -43,12 +43,12 @@
     </div>
 </div>
 
-<!-- Прямі офіційні лінки Google без жодних редиректів та сторонніх CDN -->
-<script type="module">
-    import { initializeApp } from "https://gstatic.com";
-    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://gstatic.com";
-    import { getDatabase, ref, set } from "https://gstatic.com";
+<!-- Офіційні СOMPAT скрипти Firebase v10. Вони працюють всюди без CORS -->
+<script src="https://gstatic.com"></script>
+<script src="https://gstatic.com"></script>
+<script src="https://gstatic.com"></script>
 
+<script>
     const firebaseConfig = {
         apiKey: "AIzaSyBghCGHAkUDX9S3-7dmLJmp0YyZt3bZ4dU",
         authDomain: "://firebaseapp.com",
@@ -60,11 +60,13 @@
         measurementId: "G-PL4X9DN63R"
     };
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getDatabase(app);
+    // Ініціалізація через старий добрий синтаксис
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
 
-    onAuthStateChanged(auth, (user) => {
+    // Слідкуємо за станом користувача
+    auth.onAuthStateChanged((user) => {
         if (user) {
             document.getElementById('auth-section').classList.add('hidden');
             document.getElementById('user-section').classList.remove('hidden');
@@ -76,31 +78,30 @@
         }
     });
 
-    document.getElementById('btn-register').addEventListener('click', async () => {
+    // Реєстрація
+    document.getElementById('btn-register').addEventListener('click', () => {
         const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
         showStatus('Реєстрація...', 'success');
-        try {
-            await createUserWithEmailAndPassword(auth, email, password);
-            showStatus('Акаунт успішно створено!', 'success');
-        } catch (error) {
-            showStatus('Помилка реєстрації: ' + error.message, 'error');
-        }
+        
+        auth.createUserWithEmailAndPassword(email, password)
+            .then(() => showStatus('Акаунт успішно створено!', 'success'))
+            .catch((error) => showStatus('Помилка реєстрації: ' + error.message, 'error'));
     });
 
-    document.getElementById('btn-login').addEventListener('click', async () => {
+    // Вхід
+    document.getElementById('btn-login').addEventListener('click', () => {
         const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
         showStatus('Перевірка даних...', 'success');
-        try {
-            await signInWithEmailAndPassword(auth, email, password);
-            showStatus('Успішний вхід!', 'success');
-        } catch (error) {
-            showStatus('Помилка входу: ' + error.message, 'error');
-        }
+        
+        auth.signInWithEmailAndPassword(email, password)
+            .then(() => showStatus('Успішний вхід!', 'success'))
+            .catch((error) => showStatus('Помилка входу: ' + error.message, 'error'));
     });
 
-    document.getElementById('btn-save-db').addEventListener('click', async () => {
+    // Запис у базу
+    document.getElementById('btn-save-db').addEventListener('click', () => {
         const text = document.getElementById('db-data').value;
         const user = auth.currentUser;
 
@@ -109,25 +110,19 @@
             return;
         }
 
-        const userRef = ref(db, 'users/' + user.uid);
-        try {
-            await set(userRef, {
-                secretMessage: text,
-                lastUpdated: new Date().toISOString()
-            });
-            showStatus('Дані успішно збережено в папку: /users/' + user.uid, 'success');
-        } catch (error) {
-            showStatus('База даних відхилила запит: ' + error.message, 'error');
-        }
+        db.ref('users/' + user.uid).set({
+            secretMessage: text,
+            lastUpdated: new Date().toISOString()
+        })
+        .then(() => showStatus('Дані збережено в папку: /users/' + user.uid, 'success'))
+        .catch((error) => showStatus('Помилка бази даних: ' + error.message, 'error'));
     });
 
-    document.getElementById('btn-logout').addEventListener('click', async () => {
-        try {
-            await signOut(auth);
-            showStatus('Ви вийшли з системи.', 'success');
-        } catch (error) {
-            showStatus('Помилка виходу: ' + error.message, 'error');
-        }
+    // Вихід
+    document.getElementById('btn-logout').addEventListener('click', () => {
+        auth.signOut()
+            .then(() => showStatus('Ви вийшли з системи.', 'success'))
+            .catch((error) => showStatus('Помилка виходу: ' + error.message, 'error'));
     });
 
     function showStatus(text, type) {
@@ -137,6 +132,5 @@
         box.classList.remove('hidden');
     }
 </script>
-
 </body>
 </html>
