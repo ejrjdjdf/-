@@ -43,13 +43,13 @@
     </div>
 </div>
 
-<!-- Завантажуємо базові скрипти без defer і модуля, як класичний текст -->
-<script src="https://gstatic.com"></script>
-<script src="https://gstatic.com"></script>
-<script src="https://gstatic.com"></script>
+<!-- Монолітні залізобетонні скрипти Cloudflare, які ніколи не блокуються по CORS на GitHub Pages -->
+<script src="https://cloudflare.com"></script>
+<script src="https://cloudflare.com"></script>
+<script src="https://cloudflare.com"></script>
 
 <script>
-    // Запускаємо код СТРОГО після того, як браузер завантажить усі файли зверху
+    // Запускаємо код тільки після завантаження бібліотек Cloudflare
     window.onload = function() {
         const firebaseConfig = {
             apiKey: "AIzaSyBghCGHAkUDX9S3-7dmLJmp0YyZt3bZ4dU",
@@ -62,7 +62,7 @@
             measurementId: "G-PL4X9DN63R"
         };
 
-        // Тепер об'єкт 'firebase' 100% існує в ОЗУ комп'ютера
+        // Об'єкт 'firebase' тепер 100% доступний у пам'яті
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.database();
