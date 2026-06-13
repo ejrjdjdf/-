@@ -43,97 +43,106 @@
     </div>
 </div>
 
-<!-- Додали defer, щоб скрипти завантажувалися строго у правильному порядку і не викликали помилку "firebase is not defined" -->
-<script defer src="https://gstatic.com"></script>
-<script defer src="https://gstatic.com"></script>
-<script defer src="https://gstatic.com"></script>
+<!-- Сучасні модулі Firebase v10 через залізобетонний CDN esm.run (Без CORS і без gstatic) -->
+<script type="module">
+    import { initializeApp } from "https://esm.run";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://esm.run";
+    import { getDatabase, ref, set } from "https://esm.run";
 
-<script defer>
-    // Весь цей код запуститься тільки ТОДІ, коли три верхні бібліотеки повністю завантажаться в ОЗУ
-    window.addEventListener('DOMContentLoaded', () => {
-        const firebaseConfig = {
-            apiKey: "AIzaSyBghCGHAkUDX9S3-7dmLJmp0YyZt3bZ4dU",
-            authDomain: "://firebaseapp.com",
-            databaseURL: "https://firebasedatabase.app",
-            projectId: "a12dgf-a618",
-            storageBucket: "a12dgf-a618.firebasestorage.app",
-            messagingSenderId: "340310261347",
-            appId: "1:340310261347:web:4634f37be1f25a6f9d4256",
-            measurementId: "G-PL4X9DN63R"
-        };
+    const firebaseConfig = {
+        apiKey: "AIzaSyBghCGHAkUDX9S3-7dmLJmp0YyZt3bZ4dU",
+        authDomain: "://firebaseapp.com",
+        databaseURL: "https://firebasedatabase.app",
+        projectId: "a12dgf-a618",
+        storageBucket: "a12dgf-a618.firebasestorage.app",
+        messagingSenderId: "340310261347",
+        appId: "1:340310261347:web:4634f37be1f25a6f9d4256",
+        measurementId: "G-PL4X9DN63R"
+    };
 
-        // Тепер об'єкт 'firebase' залізобетонно існує у пам'яті
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.database();
+    // Ініціалізація
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
 
-        // Слідкуємо за станом користувача
-        auth.onAuthStateChanged((user) => {
-            if (user) {
-                document.getElementById('auth-section').classList.add('hidden');
-                document.getElementById('user-section').classList.remove('hidden');
-                document.getElementById('user-email').innerText = user.email;
-                document.getElementById('user-uid').innerText = user.uid;
-            } else {
-                document.getElementById('auth-section').classList.remove('hidden');
-                document.getElementById('user-section').classList.add('hidden');
-            }
-        });
-
-        // Реєстрація користувача
-        document.getElementById('btn-register').addEventListener('click', () => {
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            showStatus('Реєстрація...', 'success');
-            
-            auth.createUserWithEmailAndPassword(email, password)
-                .then(() => showStatus('Акаунт успішно створено!', 'success'))
-                .catch((error) => showStatus('Помилка реєстрації: ' + error.message, 'error'));
-        });
-
-        // Вхід в акаунт
-        document.getElementById('btn-login').addEventListener('click', () => {
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            showStatus('Перевірка даних...', 'success');
-            
-            auth.signInWithEmailAndPassword(email, password)
-                .then(() => showStatus('Успішний вхід!', 'success'))
-                .catch((error) => showStatus('Помилка входу: ' + error.message, 'error'));
-        });
-
-        // Запис у Realtime Database
-        document.getElementById('btn-save-db').addEventListener('click', () => {
-            const text = document.getElementById('db-data').value;
-            const user = auth.currentUser;
-
-            if (!user) {
-                showStatus('Помилка: Ви не авторизовані!', 'error');
-                return;
-            }
-
-            db.ref('users/' + user.uid).set({
-                secretMessage: text,
-                lastUpdated: new Date().toISOString()
-            })
-            .then(() => showStatus('Дані успішно збережено в папку: /users/' + user.uid, 'success'))
-            .catch((error) => showStatus('База даних відхилила запит: ' + error.message, 'error'));
-        });
-
-        // Вихід
-        document.getElementById('btn-logout').addEventListener('click', () => {
-            auth.signOut()
-                .then(() => showStatus('Ви вийшли з системи.', 'success'))
-                .catch((error) => showStatus('Помилка виходу: ' + error.message, 'error'));
-        });
-
-        function showStatus(text, type) {
-            const box = document.getElementById('status-box');
-            box.innerText = text;
-            box.className = `status ${type}`;
-            box.classList.remove('hidden');
+    // Слідкуємо за станом користувача
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            document.getElementById('auth-section').classList.add('hidden');
+            document.getElementById('user-section').classList.remove('hidden');
+            document.getElementById('user-email').innerText = user.email;
+            document.getElementById('user-uid').innerText = user.uid;
+        } else {
+            document.getElementById('auth-section').classList.remove('hidden');
+            document.getElementById('user-section').classList.add('hidden');
         }
     });
+
+    // Реєстрація користувача
+    document.getElementById('btn-register').addEventListener('click', async () => {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        showStatus('Реєстрація...', 'success');
+        try {
+            await createUserWithEmailAndPassword(auth, email, password);
+            showStatus('Акаунт успішно створено!', 'success');
+        } catch (error) {
+            showStatus('Помилка реєстрації: ' + error.message, 'error');
+        }
+    });
+
+    // Вхід в акаунт
+    document.getElementById('btn-login').addEventListener('click', async () => {
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        showStatus('Перевірка даних...', 'success');
+        try {
+            await signInWithEmailAndPassword(auth, email, password);
+            showStatus('Успішний вхід!', 'success');
+        } catch (error) {
+            showStatus('Помилка входу: ' + error.message, 'error');
+        }
+    });
+
+    // Запис у Realtime Database
+    document.getElementById('btn-save-db').addEventListener('click', async () => {
+        const text = document.getElementById('db-data').value;
+        const user = auth.currentUser;
+
+        if (!user) {
+            showStatus('Помилка: Ви не авторизовані!', 'error');
+            return;
+        }
+
+        const userRef = ref(db, 'users/' + user.uid);
+        
+        try {
+            await set(userRef, {
+                secretMessage: text,
+                lastUpdated: new Date().toISOString()
+            });
+            showStatus('Дані успішно збережено в папку: /users/' + user.uid, 'success');
+        } catch (error) {
+            showStatus('База даних відхилила запит: ' + error.message, 'error');
+        }
+    });
+
+    // Вихід
+    document.getElementById('btn-logout').addEventListener('click', async () => {
+        try {
+            await signOut(auth);
+            showStatus('Ви вийшли з системи.', 'success');
+        } catch (error) {
+            showStatus('Помилка виходу: ' + error.message, 'error');
+        }
+    });
+
+    function showStatus(text, type) {
+        const box = document.getElementById('status-box');
+        box.innerText = text;
+        box.className = `status ${type}`;
+        box.classList.remove('hidden');
+    }
 </script>
 
 </body>
