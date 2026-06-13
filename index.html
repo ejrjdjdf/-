@@ -47,17 +47,21 @@
     </div>
 </div>
 
+<!-- Модулі Firebase v10 через альтернативний стабільний CDN Unpkg -->
 <script type="module">
-    // Офіційні стабільні імпорти модулів Firebase v10 (працюють на GitHub Pages без CORS)
-    import { initializeApp } from "https://gstatic.com";
+    import { initializeApp } from "https://unpkg.com";
     import { 
         getAuth, 
         createUserWithEmailAndPassword, 
         signInWithEmailAndPassword, 
         signOut, 
         onAuthStateChanged
-    } from "https://gstatic.com";
-    import { getDatabase, ref, set } from "https://gstatic.com";
+    } from "https://unpkg.com";
+    import { 
+        getDatabase, 
+        ref, 
+        set 
+    } from "https://unpkg.com";
 
     // Твоя точна конфігурація проєкту a12dgf-a618
     const firebaseConfig = {
