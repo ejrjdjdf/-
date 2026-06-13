@@ -23,7 +23,6 @@
     
     <div id="status-box" class="status hidden"></div>
 
-    <!-- Форма входу / реєстрації -->
     <div id="auth-section">
         <input type="email" id="email" placeholder="Електронна пошта">
         <input type="password" id="password" placeholder="Пароль">
@@ -31,14 +30,11 @@
         <button id="btn-register" style="background: #4caf50;">Зареєструватися</button>
     </div>
 
-    <!-- Панель користувача (доступна після успішного входу) -->
     <div id="user-section" class="hidden">
         <h3>Вітаємо, <span id="user-email"></span>!</h3>
         <p>Ваш UID: <small id="user-uid"></small></p>
         
         <hr>
-        
-        <h4>Запис даних у вашу приватну гілку RTDB</h4>
         <input type="text" id="db-data" placeholder="Введіть секретне повідомлення">
         <button id="btn-save-db" style="background: #ff9800;">Зберегти в базу даних</button>
         
@@ -47,23 +43,12 @@
     </div>
 </div>
 
-<!-- Модулі Firebase v10 через альтернативний стабільний CDN Unpkg -->
-<script type="module">
-    import { initializeApp } from "https://unpkg.com";
-    import { 
-        getAuth, 
-        createUserWithEmailAndPassword, 
-        signInWithEmailAndPassword, 
-        signOut, 
-        onAuthStateChanged
-    } from "https://unpkg.com";
-    import { 
-        getDatabase, 
-        ref, 
-        set 
-    } from "https://unpkg.com";
+<!-- Залізобетонні скрипти compat, які не викликають CORS на GitHub Pages -->
+<script src="https://gstatic.com"></script>
+<script src="https://gstatic.com"></script>
+<script src="https://gstatic.com"></script>
 
-    // Твоя точна конфігурація проєкту a12dgf-a618
+<script>
     const firebaseConfig = {
         apiKey: "AIzaSyBghCGHAkUDX9S3-7dmLJmp0YyZt3bZ4dU",
         authDomain: "://firebaseapp.com",
@@ -75,13 +60,13 @@
         measurementId: "G-PL4X9DN63R"
     };
 
-    // Ініціалізація Firebase
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getDatabase(app);
+    // Ініціалізація
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
 
     // Слідкуємо за станом користувача
-    onAuthStateChanged(auth, (user) => {
+    auth.onAuthStateChanged((user) => {
         if (user) {
             document.getElementById('auth-section').classList.add('hidden');
             document.getElementById('user-section').classList.remove('hidden');
@@ -94,33 +79,29 @@
     });
 
     // Реєстрація користувача
-    document.getElementById('btn-register').addEventListener('click', async () => {
+    document.getElementById('btn-register').addEventListener('click', () => {
         const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
         showStatus('Реєстрація...', 'success');
-        try {
-            await createUserWithEmailAndPassword(auth, email, password);
-            showStatus('Акаунт успішно створено!', 'success');
-        } catch (error) {
-            showStatus('Помилка реєстрації: ' + error.message, 'error');
-        }
+        
+        auth.createUserWithEmailAndPassword(email, password)
+            .then(() => showStatus('Акаунт успішно створено!', 'success'))
+            .catch((error) => showStatus('Помилка реєстрації: ' + error.message, 'error'));
     });
 
     // Вхід в акаунт
-    document.getElementById('btn-login').addEventListener('click', async () => {
+    document.getElementById('btn-login').addEventListener('click', () => {
         const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
         showStatus('Перевірка даних...', 'success');
-        try {
-            await signInWithEmailAndPassword(auth, email, password);
-            showStatus('Успішний вхід!', 'success');
-        } catch (error) {
-            showStatus('Помилка входу: ' + error.message, 'error');
-        }
+        
+        auth.signInWithEmailAndPassword(email, password)
+            .then(() => showStatus('Успішний вхід!', 'success'))
+            .catch((error) => showStatus('Помилка входу: ' + error.message, 'error'));
     });
 
-    // Запис у базу даних (Суворо під твої Realtime Database Rules)
-    document.getElementById('btn-save-db').addEventListener('click', async () => {
+    // Запис у Realtime Database
+    document.getElementById('btn-save-db').addEventListener('click', () => {
         const text = document.getElementById('db-data').value;
         const user = auth.currentUser;
 
@@ -129,28 +110,19 @@
             return;
         }
 
-        // Шлях 'users/uid' чітко відповідає правилу: auth.uid == $uid
-        const userRef = ref(db, 'users/' + user.uid);
-        
-        try {
-            await set(userRef, {
-                secretMessage: text,
-                lastUpdated: new Date().toISOString()
-            });
-            showStatus('Дані успішно збережено в папку: /users/' + user.uid, 'success');
-        } catch (error) {
-            showStatus('База даних відхилила запит: ' + error.message, 'error');
-        }
+        db.ref('users/' + user.uid).set({
+            secretMessage: text,
+            lastUpdated: new Date().toISOString()
+        })
+        .then(() => showStatus('Дані успішно збережено в папку: /users/' + user.uid, 'success'))
+        .catch((error) => showStatus('База даних відхилила запит: ' + error.message, 'error'));
     });
 
-    // Вихід з системи
-    document.getElementById('btn-logout').addEventListener('click', async () => {
-        try {
-            await signOut(auth);
-            showStatus('Ви вийшли з системи.', 'success');
-        } catch (error) {
-            showStatus('Помилка виходу: ' + error.message, 'error');
-        }
+    // Вихід
+    document.getElementById('btn-logout').addEventListener('click', () => {
+        auth.signOut()
+            .then(() => showStatus('Ви вийшли з системи.', 'success'))
+            .catch((error) => showStatus('Помилка виходу: ' + error.message, 'error'));
     });
 
     function showStatus(text, type) {
